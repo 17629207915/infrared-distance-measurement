@@ -1,0 +1,235 @@
+C51 COMPILER V9.54   MAIN                                                                  03/26/2019 14:50:54 PAGE 1   
+
+
+C51 COMPILER V9.54, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN .\Objects\main.obj
+COMPILER INVOKED BY: D:\Program Files\keilv5\C51\BIN\C51.EXE main.c OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PRINT(.\
+                    -Listings\main.lst) TABS(2) OBJECT(.\Objects\main.obj)
+
+line level    source
+
+   1          #include"reg51.h"
+   2          #include <intrins.h>
+   3          
+   4          #define uchar unsigned char
+   5          #define uint  unsigned int
+   6          
+   7          //定义adc模块端口
+   8          #define GPIO_DIG P1
+   9          sbit CS = P1^2;
+  10          sbit DI = P1^3;
+  11          sbit DO = P1^3;
+  12          sbit Clk = P1^4;
+  13          
+  14          //定义1602连接端口
+  15          #define DATA P0
+  16          #define Busy 0x80
+  17          sbit RS = P3^0;
+  18          sbit RW = P3^1;
+  19          sbit E  = P3^2;
+  20          uint D;
+  21          
+  22          //定义延迟函数
+  23          void delayms(char ms);
+  24          //LCD1602忙判断
+  25          char is_busy();
+  26          //定义写命令函数(1602=>stc89c52)
+  27          void write_cmd(unsigned char cmd);
+  28          //定义写数据函数(1602=>stc89c52)
+  29          void write_data(unsigned char dat);
+  30          //定义1602写数据行选择函数
+  31          void pos (unsigned char pos);
+  32          //定义ADC模数转换函数
+  33          uchar ADC0832(uchar CH);
+  34          
+  35          
+  36          main()
+  37          {  
+  38   1        write_cmd(0x38);
+  39   1        delayms(1);
+  40   1        write_cmd(0x0c);
+  41   1        delayms(1);
+  42   1        write_cmd(0x06);
+  43   1        delayms(1);
+  44   1        write_cmd(0x01);
+  45   1        delayms(1);
+  46   1        
+  47   1        pos(0);
+  48   1        write_data(' ');
+  49   1        write_data(' ');
+  50   1        write_data('V');
+  51   1        write_data('L');
+  52   1        write_data('T');
+  53   1        write_data('A');
+  54   1        write_data('G');
+C51 COMPILER V9.54   MAIN                                                                  03/26/2019 14:50:54 PAGE 2   
+
+  55   1        write_data('E');
+  56   1        write_data(':');
+  57   1        while(1)
+  58   1        {
+  59   2          D =  ADC0832(0); 
+  60   2          pos(0x40);
+  61   2          write_data(' ');
+  62   2          write_data(' ');
+  63   2          write_data(D/1000%10+0x30);
+  64   2          write_data(D/100%10+0x30);
+  65   2          write_data(D/10%10+0x30);
+  66   2          write_data(D%10+0x30);
+  67   2          delayms(100);
+  68   2        }
+  69   1      }
+  70          
+  71          
+  72          uchar ADC0832(uchar CH)
+  73          {
+  74   1        uchar i,dis0,dis1;
+  75   1        Clk=0;
+  76   1        DI=1;
+  77   1          
+  78   1        _nop_();
+  79   1        CS=0;
+  80   1        _nop_();
+  81   1        Clk=1;
+  82   1        _nop_();
+  83   1          
+  84   1        if(CH==0)
+  85   1        {
+  86   2          Clk=0;
+  87   2          DI=1;
+  88   2          _nop_();
+  89   2          Clk=1;
+  90   2          _nop_();
+  91   2          Clk=0;
+  92   2          DI=0;
+  93   2          _nop_();
+  94   2          Clk=1;
+  95   2          _nop_();  
+  96   2        }
+  97   1        else
+  98   1        {
+  99   2          Clk=0;
+ 100   2          DI=1;
+ 101   2          _nop_();
+ 102   2          Clk=1;
+ 103   2          _nop_();
+ 104   2          Clk=0;
+ 105   2          DI=1;
+ 106   2          _nop_();
+ 107   2          Clk=1;
+ 108   2          _nop_();
+ 109   2        }
+ 110   1        Clk=0;
+ 111   1        DI=1;
+ 112   1        
+ 113   1        for(i=0;i<8;i++)
+ 114   1        {
+ 115   2          _nop_();
+ 116   2          dis0<<=1;
+C51 COMPILER V9.54   MAIN                                                                  03/26/2019 14:50:54 PAGE 3   
+
+ 117   2          Clk=1;
+ 118   2          _nop_();
+ 119   2          Clk=0;
+ 120   2          if(DO)
+ 121   2            dis0|=0x01;
+ 122   2          else
+ 123   2            dis0|=0x00;
+ 124   2        }
+ 125   1        for(i=0;i<8;i++)
+ 126   1        {
+ 127   2          dis1>>=1;
+ 128   2          if(DO)
+ 129   2            dis1|=0x80;
+ 130   2          else
+ 131   2            dis1|=0x00;
+ 132   2          _nop_();
+ 133   2          Clk=1;
+ 134   2          _nop_();
+ 135   2          Clk=0;
+ 136   2        }
+ 137   1        if(dis0==dis1)
+ 138   1          D=dis0;
+ 139   1        _nop_();
+ 140   1        CS=1;
+ 141   1        DO=1;
+ 142   1        Clk=1;
+ 143   1        return D;
+ 144   1      }
+ 145          
+ 146          
+ 147          void pos (unsigned char pos)
+ 148          {
+ 149   1        write_cmd(pos|0x80);
+ 150   1      }
+ 151          
+ 152          void write_data(unsigned char dat)
+ 153          {
+ 154   1        while(is_busy());
+ 155   1        RS = 1;
+ 156   1        RW = 0;
+ 157   1        E  = 0;
+ 158   1        DATA = dat;
+ 159   1        _nop_();
+ 160   1        E = 1;
+ 161   1        E = 0;
+ 162   1      }
+ 163          
+ 164          void write_cmd(unsigned char cmd)
+ 165          {
+ 166   1        while(is_busy());
+ 167   1        RS = 0;
+ 168   1        RW = 0;
+ 169   1        E  = 0;
+ 170   1        DATA = cmd;
+ 171   1        _nop_();
+ 172   1        E = 1;
+ 173   1        E = 0;
+ 174   1      }
+ 175          
+ 176          
+ 177          char is_busy()
+ 178          {
+C51 COMPILER V9.54   MAIN                                                                  03/26/2019 14:50:54 PAGE 4   
+
+ 179   1        int a=0;
+ 180   1        char result;
+ 181   1        RS = 0;
+ 182   1        RW = 1;
+ 183   1        E  = 1;
+ 184   1        _nop_();
+ 185   1        result = (1<<7 & DATA);
+ 186   1        E = 0;
+ 187   1        return result;
+ 188   1      }
+ 189          
+ 190          
+ 191          void delayms(char ms)
+ 192          {
+ 193   1        while(ms--)
+ 194   1        {
+ 195   2          unsigned char i, j;
+ 196   2          i = 2;
+ 197   2          j = 239;
+ 198   2          do
+ 199   2          {
+ 200   3            while (--j);
+ 201   3          } 
+ 202   2          while (--i);
+ 203   2        }
+ 204   1      }
+ 205          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    379    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =      2       6
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)
